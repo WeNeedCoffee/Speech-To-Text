@@ -1,5 +1,4 @@
 pyautogui
 SpeechRecognition
-winsound
 openai
 clipboard
