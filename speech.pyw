@@ -31,6 +31,7 @@ if os.path.exists(lock_file):
 with open(lock_file, 'w') as file:
     file.write("Lock file created.")
 
+
 def delayed_sound():
     time.sleep(0.5)
     pyautogui.press('f22')
