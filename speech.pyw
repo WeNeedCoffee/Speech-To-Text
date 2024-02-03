@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
-
-# NOTE: this example requires PyAudio because it uses the Microphone class
 import threading
-import time
 import pyautogui
-import speech_recognition as sr
+import speech_recognition
 import winsound
 import openai
 import clipboard
-
-
 import os
 import time
 
@@ -39,8 +34,8 @@ def delayed_sound():
 
 
 # obtain audio from the microphone
-r = sr.Recognizer()
-with sr.Microphone() as source:
+r = sspeech_recognitionr.Recognizer()
+with speech_recognition.Microphone() as source:
     t = threading.Thread(target=delayed_sound)
     t.start()
     audio = r.listen(source)
@@ -70,7 +65,7 @@ try:
     pyautogui.hotkey('ctrl', 'v')
     clipboard.copy(old_clipboard_content)
 
-except sr.RequestError as e:
+except speech_recognition.RequestError as e:
     pyautogui.typewrite("error")
 
 
