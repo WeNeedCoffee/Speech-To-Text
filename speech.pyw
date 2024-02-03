@@ -37,7 +37,9 @@ try:
         model="gpt-4",
         messages=[
             {"role": "system",
-             "content": 'Please correct punctuation on the following message, do not add or remove any words. Ensure the punctuation is non agressive. In addition, replace any slang that is typed out with more natural text based alternatives, for example: L-M-A-O would be replaced with lmao'},
+             "content": 'Please correct punctuation on the following message, do not add or remove any words. ' +
+                        'Ensure the punctuation is non agressive. In addition, replace any slang that is typed out ' +
+                        'with more natural text based alternatives, for example: L-M-A-O would be replaced with lmao'},
             {"role": "user", "content": text}
         ])
 
