@@ -8,10 +8,14 @@ import speech_recognition as sr
 import winsound
 import openai
 import clipboard
+
+
 def delayed_sound():
     time.sleep(0.5)
     pyautogui.press('f22')
     winsound.PlaySound("*", winsound.SND_ALIAS)
+
+
 # obtain audio from the microphone
 r = sr.Recognizer()
 with sr.Microphone() as source:
@@ -23,7 +27,7 @@ with sr.Microphone() as source:
 pyautogui.press('f22')
 winsound.PlaySound("*", winsound.SND_ALIAS)
 # recognize speech using Whisper API
-with open('openaikey.txt','r') as key_file:
+with open('openaikey.txt', 'r') as key_file:
     OPENAI_API_KEY = key_file.read().strip()
 
 try:
@@ -32,15 +36,15 @@ try:
     response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[
-            {"role": "system", "content": 'Please correct punctuation on the following message, do not add or remove any words. Ensure the punctuation is non agressive. In addition, replace any slang that is typed out with more natural text based alternatives, for example: L-M-A-O would be replaced with lmao'},
+            {"role": "system",
+             "content": 'Please correct punctuation on the following message, do not add or remove any words. Ensure the punctuation is non agressive. In addition, replace any slang that is typed out with more natural text based alternatives, for example: L-M-A-O would be replaced with lmao'},
             {"role": "user", "content": text}
         ])
 
-    old_clipboard_content = clipboard.paste()  
-    clipboard.copy(text)  
-    pyautogui.hotkey('ctrl', 'v')  
+    old_clipboard_content = clipboard.paste()
+    clipboard.copy(text)
+    pyautogui.hotkey('ctrl', 'v')
     clipboard.copy(old_clipboard_content)
 
 except sr.RequestError as e:
     pyautogui.typewrite("error")
-
