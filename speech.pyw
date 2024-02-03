@@ -34,7 +34,7 @@ def delayed_sound():
 
 
 # obtain audio from the microphone
-r = sspeech_recognitionr.Recognizer()
+r = speech_recognition.Recognizer()
 with speech_recognition.Microphone() as source:
     t = threading.Thread(target=delayed_sound)
     t.start()
