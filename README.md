@@ -1,13 +1,14 @@
 # Speech-To-Text Program with Whisper API and PyAudio
 
 ## Overview
-This is a Python program that utilizes multi-threading and various modules like `pyautogui`, `speech_recognition`, `winsound`, `openai`, and `clipboard` to capture and recognize speech through microphone, use OpenAI's Whisper ASR API to transcribe spoken words to text, and then replace the clipboard content with the text and paste it wherever needed.
+This is a Python program that utilizes various modules like `pyautogui`, `speech_recognition`, `winsound`, `openai`, and `clipboard` to capture and recognize speech through microphone, use OpenAI's Whisper ASR API to transcribe spoken words to text, and then replace the clipboard content with the text and paste it wherever needed.
 
 ## Pre-requisites
 Make sure you have installed the necessary python packages listed in the `requirements.txt` file. If not, you can install them using pip:
 ```bash
 pip install -r requirements.txt
 ```
+Optionally, you can use https://www.autohotkey.com/ and the provided autohotkey script.
 
 ## Special Instructions
 The script uses the function key F22 as a hotkey to mute Discord, so you'll need to bind the Discord mute to F22.
