@@ -30,14 +30,13 @@ client.start()
 
 # Create a websocket connection to Deepgram
 options = LiveOptions(
-    punctuate=True,
     language="en-US",
     model="nova-2",
     encoding="linear16",
     channels=1,
     sample_rate=16000,
     smart_format=True,
-    utterance_end_ms=1000,
+    utterance_end_ms=1500,
     interim_results=True,
 )
 
@@ -60,7 +59,7 @@ def on_message(self, result=None, **kwargs):
     if len(sentence) == 0:
         return
 
-    #print(result)
+    print(result)
     entercheck = ''.join(ch for ch in sentence if ch not in set(string.punctuation))
     entercheck = entercheck.lower().strip()
 
@@ -70,6 +69,8 @@ def on_message(self, result=None, **kwargs):
     elif entercheck == "invoke":
         return
     pyautogui.write(sentence + " ")
+    if result.speech_final:
+        stop_recording()
     #print(f"Transcription: {sentence}")
 
 def on_metadata(self, metadata=None,  **kwargs):
@@ -86,6 +87,7 @@ dg_connection = None
 def start_recording():
     global microphone
     global dg_connection
+    global recording
     dg_connection = deepgram.listen.live.v("1")
     dg_connection.start(options)
 
@@ -98,21 +100,23 @@ def start_recording():
 
     # start microphone
     preprocess(True)
+    recording = True
     microphone.start()
 
-    print("On")
+    print("Started Recording...")
 
 def stop_recording():
     global microphone
     global dg_connection
-    print("Stop recording...")
+    global recording
     # Wait for the microphone to close
     microphone.finish()
     preprocess(False)
     # Indicate that we've finished
     dg_connection.finish()
+    recording = False
 
-    print("Finished")
+    print("Stopped recording...")
 
 def auth():
     global discord_access_token
