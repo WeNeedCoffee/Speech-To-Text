@@ -166,20 +166,61 @@ def toggle_recording():
 # Start listening for the activation phrase
 r = sr.Recognizer()
 
+import time
+from pathlib import Path
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+
+
+def on_created(event):
+    global recording
+    if Path(event.src_path).name == "enabled.lock":
+        print("enabled.lock has been created")
+        if not recording:
+            print("Start recording")
+            start_recording()  # Start the recording
+            recording = True
+
+
+def on_deleted(event):
+    global recording
+    if Path(event.src_path).name == "enabled.lock":
+        print("enabled.lock has been deleted")
+        if recording:
+            print("Stop recording")
+            stop_recording()  # Stop the recording
+            recording = False
+
+
+event_handler = FileSystemEventHandler()
+event_handler.on_created = on_created
+event_handler.on_deleted = on_deleted
+
+observer = Observer()
+observer.schedule(event_handler, path='.', recursive=False)
+observer.start()
+
 print("Listening...")
-while True:  # endless loop
-    with sr.Microphone() as source:
-        audio = r.listen(source)
 
-    try:
-        # use "sphinx" instead of "google" for offline speech recognition
-        text = r.recognize_sphinx(audio)
-        #print('You said : {}'.format(text))
+try:
+    while True:  # endless loop
+        with sr.Microphone() as source:
+            audio = r.listen(source)
 
-        if "invoke" in text:
-            toggle_recording()  # Assuming toggle_recording() can handle a None argument
+        try:
+            # use "sphinx" instead of "google" for offline speech recognition
+            text = r.recognize_sphinx(audio)
+            #print('You said : {}'.format(text))
 
-    except sr.UnknownValueError:
-        print("Sphinx could not understand audio")
-    except sr.RequestError as e:
-        print("Sphinx error; {0}".format(e))
+            if "invoke" in text:
+                toggle_recording()  # Assuming toggle_recording() can handle a None argument
+
+        except sr.UnknownValueError:
+            print("Sphinx could not understand audio")
+        except sr.RequestError as e:
+            print("Sphinx error; {0}".format(e))
+
+except KeyboardInterrupt:
+    observer.stop()
+observer.join()

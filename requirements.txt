@@ -8,3 +8,5 @@ configparser
 keyboard
 pyaudio
 pocketsphinx
+pathlib
+watchdog
