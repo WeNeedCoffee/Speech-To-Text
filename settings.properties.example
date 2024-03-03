@@ -1,0 +1,7 @@
+[options]
+discord_client_secret =
+discord_client_id =
+discord_access_token =
+deepgram_api_key =
+openai_api_key =
+disable_discord = True

@@ -2,3 +2,8 @@ pyautogui
 SpeechRecognition
 openai
 clipboard
+deepgram-sdk
+pypresence==4.3.0
+configparser
+keyboard
+pyaudio
