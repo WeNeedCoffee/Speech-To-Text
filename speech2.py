@@ -36,7 +36,7 @@ options = LiveOptions(
     channels=1,
     sample_rate=16000,
     smart_format=True,
-    utterance_end_ms=1500,
+    utterance_end_ms=1000,
     interim_results=True,
 )
 
@@ -46,11 +46,17 @@ def preprocess(enabling=False):
     if discord_dead or disable_discord.lower() == "true":
         winsound.PlaySound("*", winsound.SND_ALIAS)
     else:
+        winsound.PlaySound("*", winsound.SND_ALIAS)
         client.set_voice_settings(mute=enabling)
+import datetime
 
-
-
+do_stop = False
+last_words = None
+last_end = None
 def on_message(self, result=None, **kwargs):
+    global do_stop
+    global last_words
+    global last_end
     if result is None:
         return
     if not result.is_final:
@@ -58,8 +64,10 @@ def on_message(self, result=None, **kwargs):
     sentence = result.channel.alternatives[0].transcript
     if len(sentence) == 0:
         return
-
-    print(result)
+    last_words = datetime.datetime.now()
+    if result.speech_final:
+        last_end = datetime.datetime.now()
+    #print(result)
     entercheck = ''.join(ch for ch in sentence if ch not in set(string.punctuation))
     entercheck = entercheck.lower().strip()
 
@@ -67,10 +75,9 @@ def on_message(self, result=None, **kwargs):
         pyautogui.hotkey('enter')
         return
     elif entercheck == "invoke":
+        do_stop = True
         return
     pyautogui.write(sentence + " ")
-    if result.speech_final:
-        stop_recording()
     #print(f"Transcription: {sentence}")
 
 def on_metadata(self, metadata=None,  **kwargs):
@@ -81,6 +88,7 @@ def on_metadata(self, metadata=None,  **kwargs):
 
 def on_error(self, error, **kwargs):
   print(f"Error: {error}")
+  stop_recording()
 
 microphone = None
 dg_connection = None
@@ -100,6 +108,10 @@ def start_recording():
 
     # start microphone
     preprocess(True)
+    global last_words
+    global last_end
+    last_end = datetime.datetime.now()
+    last_words = datetime.datetime.now()
     recording = True
     microphone.start()
 
@@ -109,13 +121,25 @@ def stop_recording():
     global microphone
     global dg_connection
     global recording
-    # Wait for the microphone to close
-    microphone.finish()
+
+    try:
+        # Wait for the microphone to close
+        microphone.finish()
+    except:
+        pass
     preprocess(False)
-    # Indicate that we've finished
-    dg_connection.finish()
+    try:
+        # Indicate that we've finished
+        dg_connection.finish()
+    except:
+        pass
     recording = False
 
+    filename = "enabled.lock"
+
+    file_path = Path(filename)
+    if file_path.exists():
+        file_path.unlink()
     print("Stopped recording...")
 
 def auth():
@@ -158,11 +182,7 @@ except pypresence.exceptions.ServerError:
 
 def toggle_recording():
     global recording
-    if recording:
-        print("Stop recording")
-        stop_recording()  # Stop the recording
-        recording = False
-    else:
+    if not recording:
         print("Start recording")
         start_recording()  # Start the recording
         recording = True
@@ -190,7 +210,6 @@ def on_created(event):
 def on_deleted(event):
     global recording
     if Path(event.src_path).name == "enabled.lock":
-        print("enabled.lock has been deleted")
         if recording:
             print("Stop recording")
             stop_recording()  # Stop the recording
@@ -206,7 +225,27 @@ observer.schedule(event_handler, path='.', recursive=False)
 observer.start()
 
 print("Listening...")
+import threading
 
+
+def check_and_run():
+    global do_stop
+    global last_end
+    global last_words
+    while True:
+        time.sleep(1)
+        #Ensure we don't get dinged 200$ for leaving the mic open
+        if last_words and recording and not do_stop:
+            if datetime.datetime.now() - last_words > datetime.timedelta(seconds=12) or datetime.datetime.now() - last_end > datetime.timedelta(seconds=12):
+                do_stop = True
+                print("Stopping inactive recording - " + str(((datetime.datetime.now() - last_words))) + " - " + str(((datetime.datetime.now() - last_end))))
+        if do_stop:
+            do_stop = False
+            stop_recording()
+
+
+thread = threading.Thread(target=check_and_run)
+thread.start()
 try:
     while True:  # endless loop
         with sr.Microphone() as source:
