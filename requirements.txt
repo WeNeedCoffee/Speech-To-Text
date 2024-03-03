@@ -7,3 +7,4 @@ pypresence==4.3.0
 configparser
 keyboard
 pyaudio
+pocketsphinx

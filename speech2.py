@@ -5,8 +5,7 @@ import pypresence
 from pypresence import Client
 import configparser
 import requests
-import keyboard
-from threading import Thread
+import speech_recognition as sr
 
 from deepgram import (
     DeepgramClient,
@@ -61,20 +60,22 @@ def on_message(self, result=None, **kwargs):
     if len(sentence) == 0:
         return
 
-    print(result)
+    #print(result)
     entercheck = ''.join(ch for ch in sentence if ch not in set(string.punctuation))
     entercheck = entercheck.lower().strip()
 
     if entercheck == "enter":
         pyautogui.hotkey('enter')
         return
+    elif entercheck == "invoke":
+        return
     pyautogui.write(sentence + " ")
-    print(f"Transcription: {sentence}")
+    #print(f"Transcription: {sentence}")
 
 def on_metadata(self, metadata=None,  **kwargs):
     if metadata is None:
         return
-    print(f"\n{metadata}\n")
+    #print(f"\n{metadata}\n")
 
 
 def on_error(self, error, **kwargs):
@@ -102,6 +103,8 @@ def start_recording():
     print("On")
 
 def stop_recording():
+    global microphone
+    global dg_connection
     print("Stop recording...")
     # Wait for the microphone to close
     microphone.finish()
@@ -160,6 +163,23 @@ def toggle_recording():
         start_recording()  # Start the recording
         recording = True
 
-keyboard.add_hotkey(53, lambda: Thread(target=toggle_recording).start(), suppress=True)
+# Start listening for the activation phrase
+r = sr.Recognizer()
 
-keyboard.wait()
+print("Listening...")
+while True:  # endless loop
+    with sr.Microphone() as source:
+        audio = r.listen(source)
+
+    try:
+        # use "sphinx" instead of "google" for offline speech recognition
+        text = r.recognize_sphinx(audio)
+        #print('You said : {}'.format(text))
+
+        if "invoke" in text:
+            toggle_recording()  # Assuming toggle_recording() can handle a None argument
+
+    except sr.UnknownValueError:
+        print("Sphinx could not understand audio")
+    except sr.RequestError as e:
+        print("Sphinx error; {0}".format(e))
