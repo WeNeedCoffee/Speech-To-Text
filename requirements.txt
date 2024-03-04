@@ -10,3 +10,4 @@ pyaudio
 pocketsphinx
 pathlib
 watchdog
+wave

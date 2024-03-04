@@ -11,9 +11,13 @@ from deepgram import (
     DeepgramClient,
     LiveOptions,
     LiveTranscriptionEvents,
-    Microphone
+    Microphone,
+    DeepgramClientOptions,
+    PrerecordedOptions,
+    FileSource,
 )
 ## Configs and vars
+
 
 config = configparser.ConfigParser()
 config.read('settings.properties')
@@ -27,9 +31,14 @@ discord_dead = False
 on = False
 client = Client(discord_client_id)
 client.start()
-
+file_options: PrerecordedOptions = PrerecordedOptions(
+    model="nova-2-general",
+    smart_format=True,
+    punctuate=True,
+    language="en",
+)
 # Create a websocket connection to Deepgram
-options = LiveOptions(
+live_options = LiveOptions(
     language="en-US",
     model="nova-2",
     encoding="linear16",
@@ -44,9 +53,8 @@ options = LiveOptions(
 def preprocess(enabling=False):
 
     if discord_dead or disable_discord.lower() == "true":
-        winsound.PlaySound("*", winsound.SND_ALIAS)
+        pass
     else:
-        winsound.PlaySound("*", winsound.SND_ALIAS)
         client.set_voice_settings(mute=enabling)
 import datetime
 
@@ -74,7 +82,7 @@ def on_message(self, result=None, **kwargs):
     if entercheck == "enter":
         pyautogui.hotkey('enter')
         return
-    elif entercheck == "invoke":
+    elif entercheck == "invoke" or entercheck == "evoke":
         do_stop = True
         return
     pyautogui.write(sentence + " ")
@@ -93,11 +101,13 @@ def on_error(self, error, **kwargs):
 microphone = None
 dg_connection = None
 def start_recording():
+
+    preprocess(True)
     global microphone
     global dg_connection
     global recording
     dg_connection = deepgram.listen.live.v("1")
-    dg_connection.start(options)
+    dg_connection.start(live_options)
 
     dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
     dg_connection.on(LiveTranscriptionEvents.Metadata, on_metadata)
@@ -107,7 +117,6 @@ def start_recording():
     microphone = Microphone(dg_connection.send)
 
     # start microphone
-    preprocess(True)
     global last_words
     global last_end
     last_end = datetime.datetime.now()
@@ -116,6 +125,7 @@ def start_recording():
     microphone.start()
 
     print("Started Recording...")
+    winsound.PlaySound("*", winsound.SND_ALIAS)
 
 def stop_recording():
     global microphone
@@ -195,7 +205,7 @@ from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-
+prerecord = False
 
 def on_created(event):
     global recording
@@ -203,8 +213,11 @@ def on_created(event):
         print("enabled.lock has been created")
         if not recording:
             print("Start recording")
-            start_recording()  # Start the recording
-            recording = True
+            if prerecord:
+                prerecorded()
+            else:
+                start_recording()  # Start the recording
+                recording = True
 
 
 def on_deleted(event):
@@ -226,8 +239,83 @@ observer.start()
 
 print("Listening...")
 import threading
+import io
+import pyaudio
+import audioop
+import wave
+
+from math import ceil
+
+def record_audio_to_buffer(silence_duration_ms):
+
+    # set audio configurations
+    chunk = 1024  # chunk of audio to read at a time
+    format = pyaudio.paInt16  # 16 bit integer
+    channels = 1  # mono audio
+    rate = 44100  # sample rate
+
+    # calculate number of chunks equivalent to silence_duration_ms
+    silence_duration_seconds = silence_duration_ms / 1000
+    num_silent_chunks = ceil(silence_duration_seconds * rate / chunk)  # ceil to make sure not to miss short silences
+
+    # create PyAudio object
+    p = pyaudio.PyAudio()
+
+    stream = p.open(format=format, channels=channels, rate=rate, input=True, frames_per_buffer=chunk)
+
+    print("Recording...")
+
+    frames = []
+    silence_threshold = 1000  # silence threshold
+    silent_chunks_counter = 0  # counter for silent chunks
+
+    while True:
+        data = stream.read(chunk)
+        frames.append(data)
+
+        rms = audioop.rms(data, 2)  # get rms value
+        if rms < silence_threshold:
+            silent_chunks_counter += 1
+        else:
+            silent_chunks_counter = 0
+
+        if silent_chunks_counter == num_silent_chunks:
+            break
+
+    print("Recording complete.")
+
+    # stop and close stream
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+
+    # create BytesIO object for in-memory file writing
+    buffer = io.BytesIO()
+
+    # write frames to in-memory file
+    wf = wave.open(buffer, 'wb')
+    wf.setnchannels(channels)
+    wf.setsampwidth(p.get_sample_size(format))
+    wf.setframerate(rate)
+    wf.writeframes(b''.join(frames))
+    wf.close()
+
+    # set buffer position to start
+    buffer.seek(0)
+
+    return buffer
 
 
+def prerecorded():
+    preprocess(True)
+    payload: FileSource = {
+        "buffer": record_audio_to_buffer(3000),
+    }
+    preprocess(False)
+
+    response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, file_options)
+
+    print(response.to_json(indent=4))
 def check_and_run():
     global do_stop
     global last_end
@@ -243,9 +331,10 @@ def check_and_run():
             do_stop = False
             stop_recording()
 
-
-thread = threading.Thread(target=check_and_run)
-thread.start()
+activity_watch = False
+if activity_watch:
+    thread = threading.Thread(target=check_and_run)
+    thread.start()
 try:
     while True:  # endless loop
         with sr.Microphone() as source:
@@ -256,8 +345,11 @@ try:
             text = r.recognize_sphinx(audio)
             #print('You said : {}'.format(text))
 
-            if "invoke" in text:
-                toggle_recording()  # Assuming toggle_recording() can handle a None argument
+            if "invoke" in text or "evoke" in text:
+                if prerecord:
+                    prerecorded()
+                else:
+                    toggle_recording()  # Assuming toggle_recording() can handle a None argument
 
         except sr.UnknownValueError:
             print("Sphinx could not understand audio")
