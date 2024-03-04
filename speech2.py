@@ -6,7 +6,18 @@ from pypresence import Client
 import configparser
 import requests
 import speech_recognition as sr
+import time
+from pathlib import Path
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
+import threading
+import io
+import pyaudio
+import audioop
+import wave
+
+from math import ceil
 from deepgram import (
     DeepgramClient,
     LiveOptions,
@@ -18,6 +29,7 @@ from deepgram import (
 )
 ## Configs and vars
 
+prerecord = Path("prerecord.lock").exists()
 
 config = configparser.ConfigParser()
 config.read('settings.properties')
@@ -26,16 +38,20 @@ for section in config.sections():
     for key in config[section]:
         globals()[key] = config[section][key]
 recording=False
-deepgram = DeepgramClient(deepgram_api_key)
+deepgram = None
 discord_dead = False
 on = False
 client = Client(discord_client_id)
 client.start()
+def load_strings_from_file(filename):
+    with open(filename, 'r') as file:
+        data = file.read().splitlines()
+    return data
 file_options: PrerecordedOptions = PrerecordedOptions(
-    model="nova-2-general",
-    smart_format=True,
-    punctuate=True,
     language="en",
+    model="nova-2",
+    smart_format=True,
+    keywords=load_strings_from_file("keywords.txt")
 )
 # Create a websocket connection to Deepgram
 live_options = LiveOptions(
@@ -45,7 +61,7 @@ live_options = LiveOptions(
     channels=1,
     sample_rate=16000,
     smart_format=True,
-    utterance_end_ms=1000,
+    utterance_end_ms=5000,
     interim_results=True,
 )
 
@@ -65,15 +81,23 @@ def on_message(self, result=None, **kwargs):
     global do_stop
     global last_words
     global last_end
+    if prerecord:
+        delete_lock()
     if result is None:
         return
-    if not result.is_final:
-        return
-    sentence = result.channel.alternatives[0].transcript
+    #print(result)
+    if prerecord:
+        sentence = result.channels[0].alternatives[0].transcript
+    else:
+        sentence = result.channel.alternatives[0].transcript
+        if not result.is_final:
+            return
+        elif not activity_watch:
+            do_stop = True
     if len(sentence) == 0:
         return
     last_words = datetime.datetime.now()
-    if result.speech_final:
+    if not prerecord and result.speech_final:
         last_end = datetime.datetime.now()
     #print(result)
     entercheck = ''.join(ch for ch in sentence if ch not in set(string.punctuation))
@@ -106,6 +130,9 @@ def start_recording():
     global microphone
     global dg_connection
     global recording
+    global deepgram
+
+    deepgram = DeepgramClient(deepgram_api_key)
     dg_connection = deepgram.listen.live.v("1")
     dg_connection.start(live_options)
 
@@ -127,6 +154,13 @@ def start_recording():
     print("Started Recording...")
     winsound.PlaySound("*", winsound.SND_ALIAS)
 
+def delete_lock():
+
+    filename = "enabled.lock"
+
+    file_path = Path(filename)
+    if file_path.exists():
+        file_path.unlink()
 def stop_recording():
     global microphone
     global dg_connection
@@ -144,12 +178,7 @@ def stop_recording():
     except:
         pass
     recording = False
-
-    filename = "enabled.lock"
-
-    file_path = Path(filename)
-    if file_path.exists():
-        file_path.unlink()
+    delete_lock()
     print("Stopped recording...")
 
 def auth():
@@ -196,19 +225,20 @@ def toggle_recording():
         print("Start recording")
         start_recording()  # Start the recording
         recording = True
+    else:
+        print("Stop recording")
+        stop_recording()  # Stop the recording
+        recording = False
+
 
 # Start listening for the activation phrase
 r = sr.Recognizer()
 
-import time
-from pathlib import Path
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
-prerecord = False
 
 def on_created(event):
     global recording
+    global prerecord
     if Path(event.src_path).name == "enabled.lock":
         print("enabled.lock has been created")
         if not recording:
@@ -218,16 +248,21 @@ def on_created(event):
             else:
                 start_recording()  # Start the recording
                 recording = True
-
+    elif Path(event.src_path).name == "prerecord.lock":
+        print("Pre")
+        prerecord = True
 
 def on_deleted(event):
     global recording
+    global prerecord
     if Path(event.src_path).name == "enabled.lock":
         if recording:
             print("Stop recording")
             stop_recording()  # Stop the recording
             recording = False
-
+    elif Path(event.src_path).name == "prerecord.lock":
+        print("Live")
+        prerecord = False
 
 event_handler = FileSystemEventHandler()
 event_handler.on_created = on_created
@@ -238,21 +273,14 @@ observer.schedule(event_handler, path='.', recursive=False)
 observer.start()
 
 print("Listening...")
-import threading
-import io
-import pyaudio
-import audioop
-import wave
-
-from math import ceil
 
 def record_audio_to_buffer(silence_duration_ms):
 
-    # set audio configurations
+    # set audio configurations 99999
     chunk = 1024  # chunk of audio to read at a time
     format = pyaudio.paInt16  # 16 bit integer
     channels = 1  # mono audio
-    rate = 44100  # sample rate
+    rate = 16000  # sample rate
 
     # calculate number of chunks equivalent to silence_duration_ms
     silence_duration_seconds = silence_duration_ms / 1000
@@ -307,15 +335,18 @@ def record_audio_to_buffer(silence_duration_ms):
 
 
 def prerecorded():
+    global deepgram
     preprocess(True)
+    buffer = record_audio_to_buffer(5000)
     payload: FileSource = {
-        "buffer": record_audio_to_buffer(3000),
+        "buffer": buffer,
     }
     preprocess(False)
 
+    deepgram = DeepgramClient(deepgram_api_key)
     response = deepgram.listen.prerecorded.v("1").transcribe_file(payload, file_options)
-
-    print(response.to_json(indent=4))
+    on_message(self=None, result=response.results)
+    #print(response.to_json(indent=4))
 def check_and_run():
     global do_stop
     global last_end
@@ -324,7 +355,7 @@ def check_and_run():
         time.sleep(1)
         #Ensure we don't get dinged 200$ for leaving the mic open
         if last_words and recording and not do_stop:
-            if datetime.datetime.now() - last_words > datetime.timedelta(seconds=12) or datetime.datetime.now() - last_end > datetime.timedelta(seconds=12):
+            if datetime.datetime.now() - last_words > datetime.timedelta(seconds=12) or datetime.datetime.now() - last_end > datetime.timedelta(seconds=3):
                 do_stop = True
                 print("Stopping inactive recording - " + str(((datetime.datetime.now() - last_words))) + " - " + str(((datetime.datetime.now() - last_end))))
         if do_stop:
