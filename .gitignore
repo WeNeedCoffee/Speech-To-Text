@@ -8,4 +8,4 @@ prerecord.lock
 /models/
 audio.wav
 enabled.lock
-/.venv/
+/.venv*

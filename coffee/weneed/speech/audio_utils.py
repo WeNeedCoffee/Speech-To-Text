@@ -42,7 +42,7 @@ class AudioRecorder:
             rms = audioop.rms(data, 2)  # get rms value
             if rms < silence_threshold:
                 silent_chunks_counter += 1
-                print(str(silent_chunks_counter) + " / " + str(self.calculate_ms_from_silent_chunks(silent_chunks_counter, rate)))
+                print(str(self.calculate_ms_from_silent_chunks(silent_chunks_counter, rate)) + " / " + str(silence_duration_ms / 1000))
             else:
                 silent_chunks_counter = 0
 
@@ -78,6 +78,4 @@ class AudioRecorder:
         return num_silent_chunks
 
     def calculate_ms_from_silent_chunks(self, silent_chunk_count: int, rate) -> float:
-        duration_sec = (silent_chunk_count * self.chunk) / rate
-        duration_ms = duration_sec * 1000
-        return duration_ms
+        return (silent_chunk_count * self.chunk) / rate
