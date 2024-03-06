@@ -276,11 +276,11 @@ print("Listening...")
 
 def record_audio_to_buffer(silence_duration_ms):
 
-    # set audio configurations 99999
+    # set audio configurations
     chunk = 1024  # chunk of audio to read at a time
     format = pyaudio.paInt16  # 16 bit integer
     channels = 1  # mono audio
-    rate = 16000  # sample rate
+    rate = 44100  # sample rate
 
     # calculate number of chunks equivalent to silence_duration_ms
     silence_duration_seconds = silence_duration_ms / 1000
