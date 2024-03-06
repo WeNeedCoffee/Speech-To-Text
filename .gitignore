@@ -1,4 +1,4 @@
-openaikey.txt
+/old/openaikey.txt
 lock_file.lock
 config.ini
 /venv/
@@ -7,3 +7,5 @@ keywords.txt
 prerecord.lock
 /models/
 audio.wav
+enabled.lock
+/.venv/

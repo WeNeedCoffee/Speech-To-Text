@@ -1,5 +1,9 @@
 # Speech-To-Text Program with Whisper API and PyAudio
 
+## Notice
+This document refers to the contents of /old/ -- this project is really for personal use, so changes will be made at will for my own personal preference, none the less, it works and you can use it as you wish so long as you provide credit if it ends up elsewhere. 
+
+
 ## Overview
 This is a Python program that utilizes various modules like `pyautogui`, `speech_recognition`, `winsound`, `openai`, and `clipboard` to capture and recognize speech through microphone, use OpenAI's Whisper ASR API to transcribe spoken words to text, and then replace the clipboard content with the text and paste it wherever needed.
 
