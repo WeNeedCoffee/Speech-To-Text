@@ -4,6 +4,7 @@ import configparser
 class Config:
     def __init__(self, file_name):
         self.file_name = file_name
+        print(file_name)
 
     def get_config(self, section, key):
         config = configparser.ConfigParser()
@@ -20,7 +21,10 @@ class Config:
             return False
         elif value.lower() == key:
             return None
-        return value
+        try:
+            return int(value)  # return int if parsable as int
+        except ValueError:
+            return value
 
     def set_config(self, section, key, value):
         config = configparser.ConfigParser()

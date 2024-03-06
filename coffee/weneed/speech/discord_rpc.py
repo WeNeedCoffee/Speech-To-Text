@@ -8,25 +8,24 @@ class DiscordRPClient:
     def __init__(self, config: Config, client_id=None, client_secret=None, access_token=None):
         self.config = config
         self.discord_dead = False
-        self.discord_client_id = client_id if client_id else self.config.get_config('discord', 'discord_client_id')
-        self.discord_client_secret = client_secret if client_secret else self.config.get_config('discord',
-                                                                                                'discord_client_secret')
-        self.discord_access_token = access_token if access_token else self.config.get_config('discord',
-                                                                                             'discord_access_token')
-        self.client = pypresence.Client(self.discord_client_id)
+        self.client_id = client_id if client_id else self.config.get_config('discord', 'client_id')
+        self.client_secret = client_secret if client_secret else self.config.get_config('discord',
+                                                                                                'client_secret')
+        self.access_token = access_token if access_token else self.config.get_config('discord',
+                                                                                             'access_token')
+        self.client = pypresence.Client(self.client_id)
+        self.start()
 
-    def start(self):
-        self.client.start()
 
     def authorize(self):
-        code = self.client.authorize(self.discord_client_id, ["rpc.voice.read", "rpc.voice.write", "rpc"])['data'][
+        code = self.client.authorize(self.client_id, ["rpc.voice.read", "rpc.voice.write", "rpc"])['data'][
             'code']
         return code
 
     def auth(self):
-        if not self.discord_access_token:
-            self.discord_access_token = self.obtain_token_from_discord()
-            self.config.set_vonfig('discord', 'discord_access_token', self.discord_access_token)
+        if not self.access_token:
+            self.access_token = self.obtain_token_from_discord()
+            self.config.set_config('discord', 'access_token', self.access_token)
 
     def obtain_token_from_discord(self):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -38,15 +37,16 @@ class DiscordRPClient:
     def get_token_data(self):
         code = self.authorize()
         return {
-            'client_id': self.discord_client_id,
-            'client_secret': self.discord_client_secret,
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
             'grant_type': 'authorization_code',
             'code': code,
             'redirect_uri': 'http://localhost:3012/auth',
             'scope': 'rpc'
         }
 
-    def authenticate(self):
+    def start(self):
+        self.client.start()
         self.auth()
         if not self.authenticate_client():
             self.auth()
@@ -54,7 +54,8 @@ class DiscordRPClient:
 
     def authenticate_client(self):
         try:
-            self.client.authenticate(self.discord_access_token)
+            self.client.authenticate(self.access_token)
+            self.discord_dead = False
             return True
         except pypresence.exceptions.ServerError:
             self.discord_dead = True
