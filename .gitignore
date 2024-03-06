@@ -1,7 +1,9 @@
 openaikey.txt
 lock_file.lock
-settings.properties
+config.ini
 /venv/
 .idea
 keywords.txt
 prerecord.lock
+/models/
+audio.wav
