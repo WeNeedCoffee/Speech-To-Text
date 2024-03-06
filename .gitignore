@@ -3,3 +3,5 @@ lock_file.lock
 settings.properties
 /venv/
 .idea
+keywords.txt
+prerecord.lock
