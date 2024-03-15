@@ -143,11 +143,18 @@ class Speech:
         self.discord_client.toggle_mic(True)
         buffer = AudioRecorder(self.config).record_audio_to_buffer(self.config.get_config("deepgram", "silence_threshold"))
         self.discord_client.toggle_mic(False)
+        self.delete_lock()
         payload: FileSource = {
             "buffer": buffer.getvalue(),
         }
         self.deepgram = DeepgramClient(self.deepgram_api_key)
-        response = self.deepgram.listen.prerecorded.v("1").transcribe_file(payload, file_options)
+        try:
+            response = self.deepgram.listen.prerecorded.v("1").transcribe_file(payload, file_options)
+        except:
+            print("err")
+            winsound.PlaySound("*", winsound.SND_ALIAS)
+            return
+
         self.on_message(result=response.results)
 
     def on_created(self, event):
@@ -202,6 +209,7 @@ class Speech:
         elif entercheck == "invoke" or entercheck == "evoke":
             self.do_stop = True
             return
+
         pyautogui.write(sentence + " ")
 
     def on_metadata(self, metadata=None, **kwargs):
@@ -240,5 +248,6 @@ class Speech:
             self.observer.stop()
         self.observer.join()
 
-
+#time.sleep(3)
+#pyautogui.write("sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT")
 Speech("C:/Users/Dalet/Documents/speech/")
