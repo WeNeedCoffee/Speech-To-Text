@@ -3,11 +3,14 @@ from typing import Optional
 import winsound
 import pyautogui
 import string
+import clipboard
+import openai
 import speech_recognition as sr
 import time
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from openai import AsyncOpenAI
 
 import threading
 import datetime
@@ -26,11 +29,17 @@ from coffee.weneed.speech.audio_utils import AudioRecorder
 from coffee.weneed.speech.config import Config
 from coffee.weneed.speech.discord_rpc import DiscordRPClient
 
-
+from openai import OpenAI
+from os import getenv
 class Speech:
+
     def __init__(self, directory):
         self.observer = Observer()
         self.config = Config(directory + "config.ini")
+        self.oro = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=self.config.get_config("options", "openrouter_key"),
+        )
         self.discord_client = DiscordRPClient(self.config)
         self.microphone = None
         self.dg_connection = None
@@ -131,8 +140,62 @@ class Speech:
             if self.do_stop:
                 self.do_stop = False
                 self.stop_recording()
-
+    def mic(self, mic):
+        try:
+            self.discord_client.toggle_mic(mic)
+        except:
+            winsound.PlaySound("*", winsound.SND_ALIAS)
     def prerecorded(self):
+        if not self.config.get_config("deepgram", "use"):
+            return self.prerecorded_oai()
+        else:
+            return self.prerecorded_dg()
+    def prerecorded_oai(self):
+
+        r = sr.Recognizer()
+        OPENAI_API_KEY = self.config.get_config("options", "openai_api_key")
+        try:
+            with sr.Microphone() as source:
+
+                self.mic(True)
+                audio = r.listen(source)
+                self.mic(False)
+                self.delete_lock()
+                text = r.recognize_whisper_api(audio, api_key=OPENAI_API_KEY)
+                print(text)
+
+                if self.config.get_config("options", "complete"):
+                    completion = self.oro.chat.completions.create(
+                        model = self.config.get_config("options", "model"),
+                        messages = [
+
+                                 {"role": "system",
+                                 "content": self.config.get_config("options", "sys")},
+                                {"role": "user", "content": text}
+
+                        ],
+                    )
+                    text = completion.choices[0].message.content
+                entercheck = ''.join(ch for ch in text if ch not in set(string.punctuation))
+                entercheck = entercheck.lower().strip()
+
+                if entercheck == "enter":
+                    pyautogui.hotkey('enter')
+                    return
+                if self.config.get_config("options", "paste"):
+                    old_clipboard_content = clipboard.paste()
+                    clipboard.copy(text)
+                    pyautogui.hotkey('ctrl', 'v')
+                    clipboard.copy(old_clipboard_content)
+                else:
+                    pyautogui.write(text + " ")
+        except Exception as e:
+            print(e)
+            self.recording = False
+            self.delete_lock()
+            self.discord_client.toggle_mic(False)
+            print("Stopped recording...")
+    def prerecorded_dg(self):
         file_options: PrerecordedOptions = PrerecordedOptions(
             language=self.config.get_config("deepgram", "language"),
             model=self.config.get_config("deepgram", "model"),
@@ -140,9 +203,10 @@ class Speech:
             keywords=self.load_strings_from_file("keywords.txt")
         )
         # Create a websocket connection to Deepgram
-        self.discord_client.toggle_mic(True)
+        self.mic(True)
+
         buffer = AudioRecorder(self.config).record_audio_to_buffer(self.config.get_config("deepgram", "silence_threshold"))
-        self.discord_client.toggle_mic(False)
+        self.mic(False)
         self.delete_lock()
         payload: FileSource = {
             "buffer": buffer.getvalue(),
@@ -223,31 +287,29 @@ class Speech:
         if self.config.get_config("deepgram", "activity_watch"):
             thread = threading.Thread(target=self.check_and_run)
             thread.start()
-        try:
-            r = sr.Recognizer()
-            while True:  # endless loop
-                with sr.Microphone() as source:
-                    audio = r.listen(source)
+        # try:
+        #     r = sr.Recognizer()
+        #     while True:  # endless loop
+        #         with sr.Microphone() as source:
+        #             audio = r.listen(source)
+        #
+        #         try:
+        #             # use "sphinx" instead of "google" for offline speech recognition
+        #             text = r.recognize_sphinx(audio)
+        #
+        #             if "invoke" in text or "evoke" in text:
+        #                 if self.config.get_config("deepgram", "prerecord"):
+        #                     self.prerecorded()
+        #                 else:
+        #                     self.toggle_recording()
+        #
+        #         except sr.UnknownValueError:
+        #             print("Sphinx could not understand audio")
+        #         except sr.RequestError as e:
+        #             print("Sphinx error; {0}".format(e))
 
-                try:
-                    # use "sphinx" instead of "google" for offline speech recognition
-                    text = r.recognize_sphinx(audio)
+        # except KeyboardInterrupt:
+        #     self.observer.stop()
+        # self.observer.join()
 
-                    if "invoke" in text or "evoke" in text:
-                        if self.config.get_config("deepgram", "prerecord"):
-                            self.prerecorded()
-                        else:
-                            self.toggle_recording()
-
-                except sr.UnknownValueError:
-                    print("Sphinx could not understand audio")
-                except sr.RequestError as e:
-                    print("Sphinx error; {0}".format(e))
-
-        except KeyboardInterrupt:
-            self.observer.stop()
-        self.observer.join()
-
-#time.sleep(3)
-#pyautogui.write("sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW,ESTABLISHED -j ACCEPT")
 Speech("C:/Users/Dalet/Documents/speech/")

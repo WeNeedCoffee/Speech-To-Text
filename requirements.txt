@@ -10,3 +10,8 @@ pathlib
 watchdog
 wave
 requests
+openai
+numpy
+soundfile
+torch
+whisper

@@ -11,8 +11,7 @@ class DiscordRPClient:
         self.client_id = client_id if client_id else self.config.get_config('discord', 'client_id')
         self.client_secret = client_secret if client_secret else self.config.get_config('discord',
                                                                                                 'client_secret')
-        self.access_token = access_token if access_token else self.config.get_config('discord',
-                                                                                             'access_token')
+        self.access_token = access_token if access_token else self.config.get_config('discord', 'access_token')
         self.client = pypresence.Client(self.client_id)
         self.start()
 
@@ -46,11 +45,14 @@ class DiscordRPClient:
         }
 
     def start(self):
-        self.client.start()
-        self.auth()
-        if not self.authenticate_client():
+        try:
+            self.client.start()
             self.auth()
-            self.authenticate_client()
+            if not self.authenticate_client():
+                self.auth()
+                self.authenticate_client()
+        except:
+            return
 
     def authenticate_client(self):
         try:
@@ -62,4 +64,13 @@ class DiscordRPClient:
             return False
 
     def toggle_mic(self, enabling=False):
-        return False if self.discord_dead else self.client.set_voice_settings(mute=enabling)
+        try:
+            return False if self.discord_dead else self.client.set_voice_settings(mute=enabling)
+        except pypresence.exceptions.PipeClosed:
+            self.client = pypresence.Client(self.client_id)
+            self.start()
+            try:
+                return False if self.discord_dead else self.client.set_voice_settings(mute=enabling)
+            except:
+                pass
+
