@@ -9,3 +9,4 @@ prerecord.lock
 audio.wav
 enabled.lock
 /.venv*
+/hide

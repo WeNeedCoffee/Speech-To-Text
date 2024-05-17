@@ -59,7 +59,6 @@ class Speech:
         self.observer.start()
         self.delete_lock()
         self.recognize_audio()
-
     def load_strings_from_file(self, filename):
         with open(self.dir + filename, 'r') as file:
             data = file.read().splitlines()
@@ -162,20 +161,24 @@ class Speech:
                 self.mic(False)
                 self.delete_lock()
                 text = r.recognize_whisper_api(audio, api_key=OPENAI_API_KEY)
+
+                try:
+                    if self.config.get_config("options", "complete"):
+                        completion = self.oro.chat.completions.create(
+                            model = self.config.get_config("options", "model"),
+                            messages = [
+
+                                     {"role": "system",
+                                     "content": self.config.get_config("options", "sys")},
+                                    {"role": "user", "content": text}
+
+                            ],
+                        )
+                        text = completion.choices[0].message.content
+                except Exception as e:
+                    print(e)
+
                 print(text)
-
-                if self.config.get_config("options", "complete"):
-                    completion = self.oro.chat.completions.create(
-                        model = self.config.get_config("options", "model"),
-                        messages = [
-
-                                 {"role": "system",
-                                 "content": self.config.get_config("options", "sys")},
-                                {"role": "user", "content": text}
-
-                        ],
-                    )
-                    text = completion.choices[0].message.content
                 entercheck = ''.join(ch for ch in text if ch not in set(string.punctuation))
                 entercheck = entercheck.lower().strip()
 
