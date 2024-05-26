@@ -15,3 +15,5 @@ numpy
 soundfile
 torch
 whisper
+configparser
+keyboard

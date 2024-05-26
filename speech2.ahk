@@ -1,4 +1,6 @@
-﻿#Requires AutoHotkey v2.0
-
-NumpadDiv::Run "pythonw ./toggle.pyw"
-NumpadMult::Run "pythonw ./toggle2.pyw"
+﻿NumpadDiv::Send {F24}
+NumpadMult::Send {F23}
+NumpadSub::Send {F22}
+#h::Send {F24}
+#g::Send {F23}
+#j::Send {F22}
