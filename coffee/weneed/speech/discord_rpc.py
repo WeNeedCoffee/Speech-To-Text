@@ -1,6 +1,6 @@
-import os
 import pypresence
 import requests
+
 from coffee.weneed.speech.config import Config
 
 
@@ -10,11 +10,10 @@ class DiscordRPClient:
         self.discord_dead = False
         self.client_id = client_id if client_id else self.config.get_config('discord', 'client_id')
         self.client_secret = client_secret if client_secret else self.config.get_config('discord',
-                                                                                                'client_secret')
+                                                                                        'client_secret')
         self.access_token = access_token if access_token else self.config.get_config('discord', 'access_token')
         self.client = pypresence.Client(self.client_id)
         self.start()
-
 
     def authorize(self):
         code = self.client.authorize(self.client_id, ["rpc.voice.read", "rpc.voice.write", "rpc"])['data'][
@@ -73,4 +72,3 @@ class DiscordRPClient:
                 return False if self.discord_dead else self.client.set_voice_settings(mute=enabling)
             except:
                 pass
-

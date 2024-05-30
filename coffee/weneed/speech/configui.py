@@ -1,6 +1,6 @@
-import tkinter as tk
-from tkinter import messagebox
 import configparser
+import tkinter as tk
+
 import keyboard
 
 
@@ -22,7 +22,6 @@ class ConfigGUI:
         save_button.pack(pady=10)
         self.init_keybindings()
         self.root.mainloop()
-
 
     def create_gui(self):
         for section in self.config.sections():
@@ -57,7 +56,6 @@ class ConfigGUI:
         with open(self.config_file, 'w') as configfile:
             self.config.write(configfile)
 
-
     def toggle_config(self, section, key):
         if (section, key) in self.checkbuttons:
             current_value = self.checkbuttons[(section, key)].get()
@@ -72,7 +70,3 @@ class ConfigGUI:
     def init_keybindings(self):
         self.register_keybinding('F23', 'options', 'complete')  # Example additional keybinding
         self.register_keybinding('F22', 'options', 'tasker')  # Example additional keybinding
-
-
-
-

@@ -1,39 +1,30 @@
-from typing import Optional
-
-import keyboard
-import winsound
-import pyautogui
+import datetime
 import string
-import clipboard
-import openai
-import speech_recognition as sr
+import threading
 import time
 from pathlib import Path
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from openai import AsyncOpenAI
 
-
-import threading
-import datetime
-
+import clipboard
+import keyboard
+import pyautogui
+import speech_recognition as sr
+import winsound
 from deepgram import (
     DeepgramClient,
     LiveOptions,
     LiveTranscriptionEvents,
     Microphone,
-    DeepgramClientOptions,
     PrerecordedOptions,
     FileSource,
 )
+from openai import OpenAI
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from coffee.weneed.speech.audio_utils import AudioRecorder
 from coffee.weneed.speech.config import Config
 from coffee.weneed.speech.configui import ConfigGUI
 from coffee.weneed.speech.discord_rpc import DiscordRPClient
-
-from openai import OpenAI
-from os import getenv
 
 
 class Speech:
@@ -80,9 +71,8 @@ class Speech:
         return data
 
     def init_keybindings(self):
-        #keyboard.unregister_hotkey('f5')
-        keyboard.add_hotkey("f24", self.do)    # Block the original F24 key event
-
+        # keyboard.unregister_hotkey('f5')
+        keyboard.add_hotkey("f24", self.do)  # Block the original F24 key event
 
     def toggle_recording(self):
         if not self.recording:
@@ -209,7 +199,7 @@ class Speech:
     def process(self, text):
         if self.config.get_config("options", "complete") and ((self.config.get_config("deepgram",
                                                                                       "use") and self.config.get_config(
-                "deepgram", "prerecord")) or not self.config.get_config("deepgram", "use")):
+            "deepgram", "prerecord")) or not self.config.get_config("deepgram", "use")):
             try:
                 completion = self.oro.chat.completions.create(
                     model=self.config.get_config("options", "model"),
@@ -289,7 +279,6 @@ class Speech:
             self.discord_client.toggle_mic(False)
             print("Stopped recording...")
 
-
     def prerecorded_dg(self):
         file_options: PrerecordedOptions = PrerecordedOptions(
             language=self.config.get_config("deepgram", "language"),
@@ -326,7 +315,6 @@ class Speech:
             print(e)
             winsound.PlaySound("*", winsound.SND_ALIAS)
             return
-
 
     def do(self):
         if not self.recording:

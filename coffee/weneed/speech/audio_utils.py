@@ -1,8 +1,9 @@
-from math import ceil
-import pyaudio
-import wave
-import io
 import audioop
+import io
+import wave
+from math import ceil
+
+import pyaudio
 
 from coffee.weneed.speech.config import Config
 
@@ -42,7 +43,8 @@ class AudioRecorder:
             rms = audioop.rms(data, 2)  # get rms value
             if rms < silence_threshold:
                 silent_chunks_counter += 1
-                print(str(self.calculate_ms_from_silent_chunks(silent_chunks_counter, rate)) + " / " + str(silence_duration_ms / 1000))
+                print(str(self.calculate_ms_from_silent_chunks(silent_chunks_counter, rate)) + " / " + str(
+                    silence_duration_ms / 1000))
             else:
                 silent_chunks_counter = 0
 
