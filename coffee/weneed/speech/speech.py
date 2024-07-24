@@ -2,6 +2,7 @@ import datetime
 import string
 import threading
 import time
+from io import BytesIO
 from pathlib import Path
 
 import clipboard
@@ -39,6 +40,10 @@ class Speech:
             base_url="https://openrouter.ai/api/v1",
             api_key=self.config.get_config("options", "openrouter_key"),
         )
+        self.lo = OpenAI(
+            base_url=self.config.get_config("options", "localai_url"),
+            api_key=self.config.get_config("options", "localai_key"),
+        )
         gui_thread = threading.Thread(target=self.run_gui)
         gui_thread.start()
 
@@ -55,6 +60,7 @@ class Speech:
         self.prerecord = self.config.get_config("deepgram", "prerecord")
         self.deepgram_api_key = self.config.get_config("deepgram", "api_key")
         self.init_keybindings()
+        self.r = sr.Recognizer()
         event_handler = FileSystemEventHandler()
         event_handler.on_created = self.on_created
         event_handler.on_deleted = self.on_deleted
@@ -202,18 +208,33 @@ class Speech:
                                                                                       "use") and self.config.get_config(
             "deepgram", "prerecord")) or not self.config.get_config("deepgram", "use")):
             try:
-                completion = self.oro.chat.completions.create(
-                    model=self.config.get_config("options", "model"),
-                    messages=[
 
-                        {"role": "system",
-                         "content": self.config.get_config("options", "sys")},
-                        {"role": "user", "content": text}
+                if self.config.get_config("options", "local_only"):
+                    completion = self.lo.chat.completions.create(
+                        model=self.config.get_config("options", "model"),
+                        messages=[
 
-                    ],
-                )
+                            {"role": "system",
+                             "content": self.config.get_config("options", "sys")},
+                            {"role": "user", "content": text}
+
+                        ],
+                    )
+
+                else:
+                    completion = self.oro.chat.completions.create(
+                        model=self.config.get_config("options", "model"),
+                        messages=[
+
+                            {"role": "system",
+                             "content": self.config.get_config("options", "sys")},
+                            {"role": "user", "content": text}
+
+                        ],
+                    )
                 text = completion.choices[0].message.content
             except Exception as e:
+                print("Primary completion AI failed. Using to backup.")
                 print(e)
                 try:
                     completion = self.oro.chat.completions.create(
@@ -229,6 +250,7 @@ class Speech:
                     text = completion.choices[0].message.content
                 except Exception as ee:
                     print(ee)
+        text = text.strip()
         if self.config.get_config("options", "tasker"):
             try:
                 completion = self.oro.chat.completions.create(
@@ -261,18 +283,24 @@ class Speech:
 
     def prerecorded_oai(self):
 
-        r = sr.Recognizer()
-        OPENAI_API_KEY = self.config.get_config("options", "openai_api_key")
+        #OPENAI_API_KEY =
         try:
             with sr.Microphone() as source:
 
                 self.mic(True)
-                audio = r.listen(source)
+                audio = self.r.listen(source)
                 self.mic(False)
                 self.delete_lock()
-                text = r.recognize_whisper_api(audio, api_key=OPENAI_API_KEY)
+                #text = self.r.recognize_whisper(audio, model="medium.en")
+                text = ""
+                if self.config.get_config("options", "local_only"):
+                    wav_data = BytesIO(audio.get_wav_data())
+                    wav_data.name = "SpeechRecognition_audio.wav"
+                    transcript = self.lo.audio.transcriptions.create(file=wav_data, model="whisper-base")
+                    text = transcript.text
+                else:
+                    text = self.r.recognize_whisper_api(audio, api_key=self.config.get_config("options", "openai_api_key"))
                 self.process(text)
-
         except Exception as e:
             print(e)
             self.recording = False
