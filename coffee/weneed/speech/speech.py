@@ -72,6 +72,7 @@ class Speech:
 
     def init_keybindings(self):
         # keyboard.unregister_hotkey('f5')
+        keyboard.add_hotkey("f8", self.do)
         keyboard.add_hotkey("f24", self.do)  # Block the original F24 key event
 
     def toggle_recording(self):
